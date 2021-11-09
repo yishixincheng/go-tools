@@ -1,0 +1,10 @@
+# 配置样例
+dbType = "mysql"
+
+[mysql]
+host  = "192.168.1.21"
+port  = "3306"
+user  = "xx"
+password = "xx"
+charset = "utf8mb4"
+database = "db1"
