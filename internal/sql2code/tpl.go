@@ -9,7 +9,9 @@ import (
 )
 
 const strcutTpl = `
-package model
+package {{.Package}}
+
+{{.ImportPackage}}
 
 type {{.TableName | ToCamelCase}} struct {
 {{range .Columns}}	{{ $length := len .Comment}} {{ if gt $length 0 }}// {{.Comment}} {{else}}// {{.Name}} {{ end }}
@@ -26,6 +28,13 @@ type StructTemplate struct {
 	strcutTpl string
 }
 
+type ImportPackage string
+
+type WrapColumnData struct {
+	StructColumnList []*StructColumn
+	ImportPackageList []ImportPackage
+}
+
 type StructColumn struct {
 	Name    string
 	Type    string
@@ -34,43 +43,66 @@ type StructColumn struct {
 }
 
 type StructTemplateDB struct {
+	Package   string
 	TableName string
 	Columns   []*StructColumn
+	ImportPackage  string
 }
 
 func NewStructTemplate() *StructTemplate {
 	return &StructTemplate{strcutTpl: strcutTpl}
 }
 
-func (t *StructTemplate) AssemblyColumns(tbColumns []*TableColumn) []*StructColumn {
+func (t *StructTemplate) AssemblyColumns(tbColumns []*TableColumn) *WrapColumnData {
 	tplColumns := make([]*StructColumn, 0, len(tbColumns))
+	importPackageList := make([]ImportPackage, 0, 1)
 	for _, column := range tbColumns {
 		tag := fmt.Sprintf("`"+"json:"+"\"%s\""+"`", column.ColumnName)
 		tplColumns = append(tplColumns, &StructColumn{
 			Name:    column.ColumnName,
 			Type:    DBTypeToStructType[column.DataType],
 			Tag:     tag,
-			Comment: column.ColumnComment,
+			Comment: utils.StripLineBreakChar(column.ColumnComment),
 		})
+		if DBTypeToStructType[column.DataType] == "time.Time" {
+			importPackageList = append(importPackageList, "time")
+		}
 	}
 
-	return tplColumns
+	return &WrapColumnData{
+		StructColumnList: tplColumns,
+		ImportPackageList: importPackageList,
+	}
 }
 
-func (t *StructTemplate) Generate(tableName string, tplColumns []*StructColumn) error {
+func (t *StructTemplate) SaveToModelFile(dbName string, tableName string, wrapColumnData *WrapColumnData) error {
 	tpl := template.Must(template.New("sql2struct").Funcs(template.FuncMap{
 		"ToCamelCase": utils.UnderscoreToUpperCamelCase,
 	}).Parse(t.strcutTpl))
 
+	packageName := utils.ToLower(dbName)
+
 	tplDB := StructTemplateDB{
+		Package: packageName,
 		TableName: tableName,
-		Columns:   tplColumns,
+		Columns:   wrapColumnData.StructColumnList,
 	}
-	dir := "./dest/model"
+	if len(wrapColumnData.ImportPackageList) != 0 {
+		var importPage = "import (\n"
+		for i := range wrapColumnData.ImportPackageList {
+			importPage += "\t\""+string(wrapColumnData.ImportPackageList[i]) + "\"\n"
+		}
+		importPage += ")\n"
+		tplDB.ImportPackage = importPage
+	}
+
+	dir := "./dest/model/" + packageName
 	if err := utils.CreateDir(dir); err != nil {
 		fmt.Println("创建文件夹失败", err)
 	}
-	f, err := os.OpenFile(dir + "/" + utils.ToLower(utils.StripUnderscore(tableName)) + ".go", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	filePath := dir + "/" + utils.ToLower(utils.StripUnderscore(tableName)) + ".go"
+
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalf("打开文件失败%v", err)
 	}
@@ -81,7 +113,7 @@ func (t *StructTemplate) Generate(tableName string, tplColumns []*StructColumn) 
 		return err
 	}
 
-	fmt.Println("表 " + tableName + " 已生成")
-
+	fmt.Println("已完成" + tableName + "表转化，保存路径为" + filePath)
 	return nil
 }
+

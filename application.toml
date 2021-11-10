@@ -2,9 +2,9 @@
 dbType = "mysql"
 
 [mysql]
-host  = "192.168.1.21"
+host  = "192.168.1.192"
 port  = "3306"
-user  = "xx"
-password = "xx"
+user  = "food"
+password = "food0563"
 charset = "utf8mb4"
-database = "db1"
+database = "cdk"

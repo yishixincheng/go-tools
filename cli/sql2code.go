@@ -59,8 +59,8 @@ func handleSql2Code(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatalf("查询表结构报错：%v", err)
 		}
-		templateColumns := template.AssemblyColumns(columns)
-		err = template.Generate(table, templateColumns)
+		wrapColumnData := template.AssemblyColumns(columns)
+		err = template.SaveToModelFile(dbName, table, wrapColumnData)
 		if err != nil {
 			log.Fatalf("template.Generate err: %v", err)
 		}

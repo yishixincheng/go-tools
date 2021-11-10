@@ -25,6 +25,12 @@ func StripUnderscore(s string) string {
 	return s
 }
 
+func StripLineBreakChar(s string) string {
+	s = strings.Replace(s, "\n", " ", -1)
+	s = strings.Replace(s, "\r", "", -1)
+	return s
+}
+
 func UnderscoreToLowerCamelCase(s string) string {
 	s = UnderscoreToUpperCamelCase(s)
 	return string(unicode.ToLower(rune(s[0]))) + s[1:]
