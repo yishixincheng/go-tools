@@ -11,6 +11,7 @@ import (
 var (
 	dbName    string
 	tableName string
+	gorm      string
 )
 
 var sql2codeCmd = &cobra.Command{
@@ -25,6 +26,7 @@ func init()  {
 	flags := sql2codeCmd.Flags()
 	flags.StringVarP(&dbName, "database","d", viper.GetString("mysql.database"), "数据库名称")
 	flags.StringVarP(&tableName, "table", "t", "","表名")
+	flags.StringVarP(&gorm, "gorm", "g", "false", "是否支持gorm")
 	registerMap["sql2code"] = sql2codeCmd
 }
 
@@ -59,8 +61,8 @@ func handleSql2Code(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatalf("查询表结构报错：%v", err)
 		}
-		wrapColumnData := template.AssemblyColumns(columns)
-		err = template.SaveToModelFile(dbName, table, wrapColumnData)
+		wrapColumnData := template.AssemblyColumns(columns, gorm)
+		err = template.SaveToModelFile(dbName, table, gorm, wrapColumnData)
 		if err != nil {
 			log.Fatalf("template.Generate err: %v", err)
 		}

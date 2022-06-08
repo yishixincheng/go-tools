@@ -14,6 +14,7 @@ package {{.Package}}
 {{.ImportPackage}}
 
 type {{.TableName | ToCamelCase}} struct {
+{{ $gorm := len .Gorm }}{{ if gt $gorm 0 }}     gorm.Model{{ end }}
 {{range .Columns}}	{{ $length := len .Comment}} {{ if gt $length 0 }}// {{.Comment}} {{else}}// {{.Name}} {{ end }}
 	{{ $typeLen := len .Type }} {{ if gt $typeLen 0 }}{{.Name | ToCamelCase}}	{{.Type}}	{{.Tag}}{{ else }}{{.Name}}{{ end }}
 {{end}}}
@@ -47,17 +48,38 @@ type StructTemplateDB struct {
 	TableName string
 	Columns   []*StructColumn
 	ImportPackage  string
+	Gorm string
 }
 
 func NewStructTemplate() *StructTemplate {
 	return &StructTemplate{strcutTpl: strcutTpl}
 }
 
-func (t *StructTemplate) AssemblyColumns(tbColumns []*TableColumn) *WrapColumnData {
+func (t *StructTemplate) AssemblyColumns(tbColumns []*TableColumn, gorm string) *WrapColumnData {
 	tplColumns := make([]*StructColumn, 0, len(tbColumns))
 	importPackageList := make([]ImportPackage, 0, 1)
+
+	if gorm == "true" || gorm == "1" {
+		importPackageList = append(importPackageList, "github.com/jinzhu/gorm")
+	}
+
 	for _, column := range tbColumns {
-		tag := fmt.Sprintf("`"+"json:"+"\"%s\""+"`", column.ColumnName)
+		gormTag := ""
+		if gorm == "true" || gorm == "1" {
+			gormTag += "gorm:\"type:"+column.ColumnType
+			if column.IsNullable == "YES" {
+				gormTag += "; null"
+			} else {
+				gormTag += "; not null"
+			}
+			if column.ColumnDefault != nil {
+				gormTag += "; default:'" + *column.ColumnDefault + "'"
+			}
+			gormTag += "\" "
+		}
+
+		tag := fmt.Sprintf("`%s"+"json:"+"\"%s\""+"`", gormTag, column.ColumnName)
+
 		tplColumns = append(tplColumns, &StructColumn{
 			Name:    column.ColumnName,
 			Type:    DBTypeToStructType[column.DataType],
@@ -75,7 +97,7 @@ func (t *StructTemplate) AssemblyColumns(tbColumns []*TableColumn) *WrapColumnDa
 	}
 }
 
-func (t *StructTemplate) SaveToModelFile(dbName string, tableName string, wrapColumnData *WrapColumnData) error {
+func (t *StructTemplate) SaveToModelFile(dbName string, tableName string, gorm string, wrapColumnData *WrapColumnData) error {
 	tpl := template.Must(template.New("sql2struct").Funcs(template.FuncMap{
 		"ToCamelCase": utils.UnderscoreToUpperCamelCase,
 	}).Parse(t.strcutTpl))
@@ -86,6 +108,9 @@ func (t *StructTemplate) SaveToModelFile(dbName string, tableName string, wrapCo
 		Package: packageName,
 		TableName: tableName,
 		Columns:   wrapColumnData.StructColumnList,
+	}
+	if gorm == "true" || gorm == "1" {
+		tplDB.Gorm = "true"
 	}
 	if len(wrapColumnData.ImportPackageList) != 0 {
 		var importPage = "import (\n"

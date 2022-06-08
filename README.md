@@ -17,3 +17,6 @@ go run main.go sql2code --d=数据库名 -t=”表名1,表名2“
 - 数据库下面全部表生成
 
 go run main.go sql2code --d=数据库名 -t=*
+
+- 支持 gorm格式
+go run main.go sql2code --database=数据库名 --table=* --gorm=true

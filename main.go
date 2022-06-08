@@ -8,7 +8,7 @@ import (
 
 func main()  {
 	if len(os.Args) < 2 {
-		log.Fatalln("\n参数缺失，示例如下\ngo run main.go sql2code --table=cdk")
+		log.Fatalln("\n参数缺失，示例如下\ngo run main.go sql2code --database=mdm --table=* --gorm=true")
 	}
 	cmdName := os.Args[1]
 	if err := cli.RegisterCmd(cmdName); err != nil {
